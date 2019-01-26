@@ -1,0 +1,9 @@
+[package]
+name = "gui_core_00"
+version = "0.1.0"
+authors = ["Ben Pinhorn <00ben.allen@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+glfw = "0.26.1"
+gl = "0.11.0"
