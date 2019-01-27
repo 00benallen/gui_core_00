@@ -9,7 +9,8 @@ pub struct GameWindow {
     glfw_handle: Glfw,
     glfw_window_handle: glfw::Window,
     glfw_events_receiver: mpsc::Receiver<(f64, glfw::WindowEvent)>,
-    background_color: GLColor
+    background_color: GLColor,
+    initialization_finished: bool
 
 }
 
@@ -28,15 +29,25 @@ impl GameWindow {
         glfw_window_handle.set_key_polling(true);
         glfw_window_handle.make_current();
 
+
         println!("Initializing OpenGL");
         let _gl = gl::load_with(|s| glfw_window_handle.get_proc_address(s) as *const std::os::raw::c_void);
 
         println!("Initializing GameWindow");
-        let mut game_window = GameWindow { glfw_handle, glfw_window_handle, glfw_events_receiver, background_color };
+        let mut game_window = GameWindow { 
+            glfw_handle, 
+            glfw_window_handle, 
+            glfw_events_receiver, 
+            background_color, 
+            initialization_finished: false };
 
         unsafe {
             println!("Setting background color in OpenGL");
-            gl::ClearColor(game_window.background_color.0, game_window.background_color.1, game_window.background_color.2, game_window.background_color.3);
+            gl::ClearColor(
+                game_window.background_color.0, 
+                game_window.background_color.1, 
+                game_window.background_color.2, 
+                game_window.background_color.3);
         };
 
         if auto_init {
@@ -56,8 +67,10 @@ impl GameWindow {
         game_window
     }
 
-    pub fn init_event_loop<F>(&mut self, handler: F) where F: Fn(&mut glfw::Window, glfw::WindowEvent) {
+    pub fn init_event_loop<F>(&mut self, handler: F) where F: Fn(&mut glfw::Window, glfw::WindowEvent) {      
+
         while !self.glfw_window_handle.should_close() {
+            
             self.glfw_handle.poll_events();
             for (_, event) in glfw::flush_messages(&self.glfw_events_receiver) {
                 handler(&mut self.glfw_window_handle, event);
@@ -68,6 +81,14 @@ impl GameWindow {
             }
 
             self.glfw_window_handle.swap_buffers();
+
+            if !self.initialization_finished {
+                let (cur_x, cur_y) = self.glfw_window_handle.get_pos();
+
+                self.glfw_window_handle.set_pos(0, 0);
+                self.glfw_window_handle.set_pos(cur_x, cur_y);
+                self.initialization_finished = true;
+            }
             
         }
     }
