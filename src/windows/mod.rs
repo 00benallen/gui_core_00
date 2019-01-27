@@ -34,6 +34,11 @@ impl GameWindow {
         println!("Initializing GameWindow");
         let mut game_window = GameWindow { glfw_handle, glfw_window_handle, glfw_events_receiver, background_color };
 
+        unsafe {
+            println!("Setting background color in OpenGL");
+            gl::ClearColor(game_window.background_color.0, game_window.background_color.1, game_window.background_color.2, game_window.background_color.3);
+        };
+
         if auto_init {
             match handler {
                 Some(handler) => { 
@@ -46,10 +51,7 @@ impl GameWindow {
             println!("Warning: Event loop not initialized, initialize manually to process GLFW window events");
         }
 
-        unsafe {
-            println!("Setting background color in OpenGL");
-            gl::ClearColor(game_window.background_color.0, game_window.background_color.1, game_window.background_color.2, game_window.background_color.3);
-        };
+        
 
         game_window
     }
