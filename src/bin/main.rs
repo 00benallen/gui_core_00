@@ -5,5 +5,5 @@ use gui_core_00::windows;
 
 fn main() {
     println!("Starting test driver.");
-    windows::init_window();
+    windows::test_init_window();
 }
