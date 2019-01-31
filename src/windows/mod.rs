@@ -2,6 +2,7 @@ use std::sync::mpsc;
 use gl::types::GLfloat;
 use glfw::{ Context, Glfw, Key, Action, WindowHint, OpenGlProfileHint };
 use crate::shaders;
+use crate::shaders::shader_program::ShaderProgram;
 
 pub type GLColor = (GLfloat, GLfloat, GLfloat, GLfloat);
 
@@ -21,10 +22,7 @@ impl GameWindow {
         where F: Fn(&mut glfw::Window, glfw::WindowEvent) {
 
         println!("Initializing GLFW");
-        let mut glfw_handle = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
-        glfw_handle.window_hint(WindowHint::ContextVersion(3, 2));
-        glfw_handle.window_hint(WindowHint::OpenGlForwardCompat(true));
-        glfw_handle.window_hint(WindowHint::OpenGlProfile(OpenGlProfileHint::Core));
+        let glfw_handle = init_glfw_handle();
 
         println!("Intializing GLFW window and event channel");
         let (mut glfw_window_handle, glfw_events_receiver) = glfw_handle.create_window(2880, 1800, "Test Window", glfw::WindowMode::Windowed)
@@ -70,19 +68,9 @@ impl GameWindow {
         game_window
     }
 
-    pub fn init_event_loop<F>(&mut self, handler: F) where F: Fn(&mut glfw::Window, glfw::WindowEvent) {
+    fn init_event_loop<F>(&mut self, handler: F) where F: Fn(&mut glfw::Window, glfw::WindowEvent) {
 
-        use std::ffi::CString;
-
-        let vert_shader = shaders::shader::Shader::new_vert(
-            &CString::new(include_str!("../triangle.vert")).unwrap());
-
-        let frag_shader = shaders::shader::Shader::new_frag(
-            &CString::new(include_str!("../triangle.frag")).unwrap());  
-
-        let shader_program = shaders::shader_program::ShaderProgram::new(vert_shader, frag_shader);
-
-        shader_program.set_used();
+        let shader_program = init_default_shader_program();
 
         let vertices: Vec<f32> = vec![
         -0.5, -0.5, 0.0,
@@ -164,6 +152,33 @@ impl GameWindow {
         }
         
     }
+}
+
+fn init_glfw_handle() -> Glfw {
+    println!("Initializing GLFW");
+    let mut glfw_handle = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
+    glfw_handle.window_hint(WindowHint::ContextVersion(3, 2));
+    glfw_handle.window_hint(WindowHint::OpenGlForwardCompat(true));
+    glfw_handle.window_hint(WindowHint::OpenGlProfile(OpenGlProfileHint::Core));
+
+    glfw_handle
+}
+
+fn init_default_shader_program() -> ShaderProgram {
+
+    use std::ffi::CString;
+
+    let vert_shader = shaders::shader::Shader::new_vert(
+        &CString::new(include_str!("../triangle.vert")).unwrap());
+
+    let frag_shader = shaders::shader::Shader::new_frag(
+        &CString::new(include_str!("../triangle.frag")).unwrap());  
+
+    let shader_program = shaders::shader_program::ShaderProgram::new(vert_shader, frag_shader);
+
+    shader_program.set_used();
+
+    shader_program
 }
 
 //TODO remove from library both
