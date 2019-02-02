@@ -1,3 +1,4 @@
-pub mod windows;
-pub mod shaders;
-pub mod errors;
+#[macro_use]
+extern crate gfx;
+
+pub mod app;

@@ -5,5 +5,9 @@ authors = ["Ben Pinhorn <00ben.allen@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-glfw = "0.26.1"
-gl = "0.11.0"
+gfx = "0.17"
+glutin = "0.19.0"
+gfx_window_glutin = "0.28.0"
+image = "0.21.0"
+gfx_device_gl = "0.15.5"
+gfx_core = "0.8.3"

@@ -1,9 +1,12 @@
-extern crate glfw;
 extern crate gui_core_00;
+extern crate glutin;
 
-use gui_core_00::windows;
+use gui_core_00::app::GuiApplication00;
+use glutin::dpi::LogicalSize;
 
 fn main() {
-    println!("Starting test driver.");
-    windows::test_init_window();
+
+    GuiApplication00::new("Test Title".to_string(), LogicalSize {width: 1440.0, height: 900.0})
+    .expect("Application startup failed, see logs");
+
 }
