@@ -9,11 +9,12 @@ pub type DepthFormat = gfx::format::DepthStencil; //not sure what a stencil is j
 
 use gfx;
 use gfx_device_gl::{ Device as GlDevice, Factory, Resources };
-use gfx_core::handle::{ RenderTargetView, DepthStencilView };
-use gfx_core::format::{ R8_G8_B8_A8, Srgb, D24_S8, Unorm };
+use gfx_core::handle::{ RenderTargetView };
+use gfx_core::format::{ R8_G8_B8_A8, Srgb };
 use gfx::traits::FactoryExt;
 use gfx::Device;
 
+use crate::geometry::{ Triangle, Color, Texture, Shape };
 
 // Create a GFX pipeline
 gfx_defines!{
@@ -34,21 +35,38 @@ gfx_defines!{
     }
 }
 
-//Scale to screen coords
-const SCALE_TO_SCREEN_TRANSFORM: Transform = Transform {
-        transform: [[0.000694444444444, 0.0, 0.0, 0.0],
-                    [0.0, 0.001111111111111, 0.0, 0.0],
-                    [0.0, 0.0, 1.0, 0.0],
-                    [0.0, 0.0, 0.0, 1.0]]
-};
+#[derive(Clone, Copy)]
+pub struct Vertex2D {
+    pos: [f32; 2],
+    uv: [f32; 2]
+}
+
+impl Vertex2D {
+
+    pub fn to_gfx_vertex(&self) -> Vertex {
+        return Vertex { pos: self.pos, uv: self.uv }
+    }
+
+}
 
 //Define some constant data to draw, origin is in centre of screen, screen is 1.0x1.0 units at all times
 //TODO remove, just for testing
-const TRIANGLE: [Vertex; 3] = [
-    Vertex { pos: [ -50.0, -50.0], uv: [1.0, 0.0] }, //bottom-left
-    Vertex { pos: [  50.0, -50.0], uv: [0.0, 1.0] }, //bottom-right
-    Vertex { pos: [  0.0,  50.0], uv: [1.0, 1.0] }, //top
+// const TRIANGLE: [Vertex2D; 3] = [
+//     Vertex2D { pos: [  100.0, -50.0], uv: [1.0, 0.0] }, //bottom-left
+//     Vertex2D { pos: [  150.0, -50.0], uv: [1.0, 0.0] }, //bottom-right
+//     Vertex2D { pos: [  100.0,  50.0], uv: [1.0, 0.0] }, //top
+// ];
+
+//Define some constant data to draw, origin is in centre of screen, screen is 1.0x1.0 units at all times
+//TODO remove, just for testing
+const SQUARE: [Vertex2D; 4] = [
+    Vertex2D { pos: [50.0, -50.0],    uv: [1.0, 1.0] }, //top-left
+    Vertex2D { pos: [-50.0, -50.0],   uv: [0.0, 1.0] }, //bottom-left
+    Vertex2D { pos: [-50.0, 50.0],    uv: [0.0, 0.0] }, //bottom-right
+    Vertex2D { pos: [50.0, 50.0],     uv: [1.0, 0.0] }, //top-right
 ];
+
+const INDICES: &[u16] = &[0, 1, 2, 2, 3, 0, 4, 5, 6];
 
 const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
 
@@ -57,19 +75,17 @@ pub struct GfxWindowHandles {
     window: GlWindow,
     device: GlDevice,
     factory: Factory,
-    render_target: RenderTargetView<Resources, ( R8_G8_B8_A8, Srgb)>,
-    depth_stencil: DepthStencilView<Resources, ( D24_S8, Unorm )>
+    render_target: RenderTargetView<Resources, ( R8_G8_B8_A8, Srgb)>
 
 }
 
 pub struct GuiApplication00 {
 
     handles: GfxWindowHandles,
-    vertex_buffer: Vec<Vertex>
+    vertex_buffer: Vec<Vertex2D>
 
 }
 
-#[allow(dead_code)]
 impl GuiApplication00 {
     pub fn new(
         window_title: String, 
@@ -87,14 +103,15 @@ impl GuiApplication00 {
         let mut new_app = GuiApplication00 { handles: window_handles, vertex_buffer };
     
         //TODO start event loop on its own thread so startup thread closes
-        new_app.init_event_loop(events_loop)?;
+        new_app.init_event_loop(events_loop, dimensions)?;
 
         Ok(new_app)
     }
 
     fn init_event_loop(
         &mut self, 
-        mut events_loop: glutin::EventsLoop) -> Result<(), GuiInitError> {
+        mut events_loop: glutin::EventsLoop,
+        dimensions: LogicalSize) -> Result<(), GuiInitError> {
 
         //initialize pipeline, hardcode this for now, figure out if we need multiple ones or something
         let pso = self.handles.factory.create_pipeline_simple(
@@ -106,7 +123,29 @@ impl GuiApplication00 {
         //initialize command encoder
         let mut encoder: gfx::Encoder<Resources, gfx_device_gl::CommandBuffer> = self.handles.factory.create_command_buffer().into();
 
-        let (gfx_vertex_buffer, slice) = self.handles.factory.create_vertex_buffer_with_slice(&TRIANGLE, ());
+
+        self.vertex_buffer.extend_from_slice(&SQUARE);
+
+
+        let v1: Vertex2D = Vertex2D { pos: [  100.0, -50.0], uv: [1.0, 0.0] }; //bottom-left
+        let v2: Vertex2D = Vertex2D { pos: [  150.0, -50.0], uv: [1.0, 0.0] }; //bottom-right
+        let v3: Vertex2D = Vertex2D { pos: [  100.0,  50.0], uv: [1.0, 0.0] }; //top
+
+        let color: Option<Color> = Color::new(255.0, 255.0, 255.0, 1.0);
+        let t_texture: Option<Texture> = None;
+
+        let triangle: Triangle = Triangle::new(
+            v1, 
+            v2, 
+            v3,
+            color, 
+            t_texture);
+
+        self.vertex_buffer.append(&mut triangle.vertices());
+
+        let converted_v_buff: Vec<Vertex> = self.vertex_buffer.iter().map(|e| e.to_gfx_vertex()).collect();
+
+        let (gfx_vertex_buffer, slice) = self.handles.factory.create_vertex_buffer_with_slice(&converted_v_buff, INDICES);
         let transform_buffer = self.handles.factory.create_constant_buffer(1);
         
 
@@ -120,6 +159,15 @@ impl GuiApplication00 {
             tex: (texture, sampler),
             transform: transform_buffer,
             out: self.handles.render_target.clone(),
+        };
+
+        //Scale to screen coords
+        let scale_to_screen: Transform = Transform {
+            transform: 
+                [[1.0/dimensions.width as f32, 0.0,                          0.0, 0.0],
+                [0.0,                          1.0/dimensions.height as f32, 0.0, 0.0],
+                [0.0,                          0.0,                          1.0, 0.0],
+                [0.0,                          0.0,                          0.0, 1.0]]
         };
 
         let mut running = true;
@@ -140,7 +188,7 @@ impl GuiApplication00 {
 
             // Put in main loop before swap buffers and device clean-up method
             encoder.clear(&self.handles.render_target, BLACK); //clear the framebuffer with a color(color needs to be an array of 4 f32s, RGBa)
-            encoder.update_buffer(&data.transform, &[SCALE_TO_SCREEN_TRANSFORM], 0).expect("Updating encoder buffer failed."); //update buffers
+            encoder.update_buffer(&data.transform, &[scale_to_screen], 0).expect("Updating encoder buffer failed."); //update buffers
             encoder.draw(&slice, &pso, &data); // draw commands with buffer data and attached pso
             encoder.flush(&mut self.handles.device); // execute draw commands
 
@@ -149,6 +197,12 @@ impl GuiApplication00 {
         }
 
         Ok(())
+
+    }
+
+    pub fn add_to_vertex_buffer<S: Shape>(&mut self, shape: S) {
+
+        self.vertex_buffer.extend(&shape.vertices());
 
     }
 }
@@ -165,7 +219,7 @@ fn init_window(
         let contextbuilder = glutin::ContextBuilder::new()
             .with_gl(GlRequest::Specific(OpenGl,(3,2)))
             .with_vsync(true);
-        let (window, device, factory, render_target, depth_stencil) =
+        let (window, device, factory, render_target, _depth_stencil) =
             match gfx_window_glutin::init::<ColorFormat, DepthFormat>(windowbuilder, contextbuilder, &events_loop) {
 
                 Ok(handles) => handles,
@@ -176,7 +230,7 @@ fn init_window(
 
             };
         
-        return Ok(GfxWindowHandles { window, device, factory, render_target, depth_stencil });
+        return Ok(GfxWindowHandles { window, device, factory, render_target });
 }
 
 use std::error::Error;
